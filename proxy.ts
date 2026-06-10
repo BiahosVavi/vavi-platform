@@ -27,9 +27,21 @@ export default async function proxy(request: NextRequest) {
   );
 
   // Refresh the session and gate everything behind login (single-user app).
-  const {
+  let {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Defense-in-depth: even if signups are enabled in Supabase, only the
+  // allowlisted email may hold a session here.
+  const allowedEmail = process.env.ALLOWED_EMAIL;
+  if (
+    user &&
+    allowedEmail &&
+    user.email?.toLowerCase() !== allowedEmail.toLowerCase()
+  ) {
+    await supabase.auth.signOut();
+    user = null;
+  }
 
   const isLogin = request.nextUrl.pathname.startsWith("/login");
 
